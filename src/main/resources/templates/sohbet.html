@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="/webjars/bootstrap/4.1.0/css/bootstrap.min.css"/>
+
+    <title>Sohbet</title>
+</head>
+<body>
+
+<div style="margin-top: 20px"></div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-8"></div>
+        <div class="col-4" style="text-align: right">
+            <div style="padding: 4px">
+                <a href="/cikis">Çıkış Yap</a>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-8">
+            <div id="sohbet" style="height: 450px; padding: 12px; border: 1px solid #cccccc; border-radius: 3px; overflow: auto">
+
+                Bir Kullanıcı seçerek sohbet etmeye başlayabilirsiniz;
+
+            </div>
+            <div>
+                <input id="mesajInput" type="text" class="form-control" style="height: 50px" placeholder="Birşeyler Yazın ve Enter basın..."/>
+            </div>
+        </div>
+        <div class="col-4">
+            <div id="kullaniciList" style="height: 500px; padding:12px; border: 1px solid #cccccc; border-radius: 3px; overflow: auto">
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/webjars/jquery/3.3.1/jquery.min.js"></script>
+<script src="/webjars/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+<script type="text/javascript" th:inline="javascript">
+
+    var ws = null;
+    var kimden = /*[[${oturum.adi}]]*/ '';
+
+    $(function () {
+
+        var MSG_YENILE = 100;
+        var MSG_KABUL_SORGU = 300;
+        var MSG_KABUL_EVET = 301;
+        var MSG_KABUL_HAYIR = 302;
+        var MSG_METIN = 400;
+
+
+        // kullanici listesi ajax request ile cekiliyor ve kullanici list div icerisinde gelen sonuc dolduruluyor.
+        $.get("/kullaniciList", function (data) {
+            $('#kullaniciList').html(data);
+        });
+
+        // 5sn. de bir sunucuya ping gonder
+        setInterval(function () {
+            $.get("/ping", function (data) {
+            });
+        }, 5000);
+
+
+        // 1sn. de bir sunucuya kullanici list ceker
+        setInterval(function () {
+            $.get("/kullaniciList", function (data) {
+                $('#kullaniciList').html(data);
+            });
+        }, 1000);
+
+        ws = new WebSocket("ws://172.20.10.7:8080/ws");
+
+        ws.onopen = function () {
+
+        };
+
+        ws.onmessage = function (evt) {
+            var mesaj = JSON.parse(evt.data);
+            if (mesaj.tip === 300) {
+                if (confirm(mesaj.kimden + " kullanıcısından sohbet etmek icin talep aldınız, kabul ediyor musunuz?")) {
+                    $('#sohbet').html(mesaj.kimden + " kullanıcısı ile sohbet etmeye başlayabilirsiniz.");
+
+                    ws.send(JSON.stringify({
+                        "kimden": mesaj.kime,
+                        "kime": mesaj.kimden,
+                        "tip": 301,
+                        "mesaj": 'kabul'
+                    }));
+                    $("#mesajInput").attr("data-kime", mesaj.kimden);
+                }
+                else {
+                    $('#sohbet').html(mesaj.kimden + " kullanıcısının sohbetini reddettiniz.");
+                    ws.send(JSON.stringify({
+                        "kimden": mesaj.kime,
+                        "kime": mesaj.kimden,
+                        "tip": 302,
+                        "mesaj": 'red'
+                    }));
+                }
+            }
+            else if (mesaj.tip === 301) {
+                $('#sohbet').html(mesaj.kimden + " kullanıcısı mesaj isteğinizi kabul etti");
+                $("#mesajInput").attr("data-kime", mesaj.kimden);
+            }
+            else if (mesaj.tip === 302) {
+                $('#sohbet').html(mesaj.kimden + " kullanıcısı mesaj isteğinizi red etti");
+            }
+            else if (mesaj.tip === 400) {
+                $('#sohbet').append('<div style="padding: 4px; margin: 4px; border-radius: 3px; background-color: #cccccc"><b>' + mesaj.kimden + ':</b> ' + mesaj.mesaj);
+            }
+        };
+
+        ws.onclose = function () {
+            alert("Sohbet Kanalı Kapandı, Lütfen Sayfayı Yenileyiniz.");
+        };
+
+        $("#mesajInput").keyup(function (event) {
+            if (event.keyCode === 13) {
+                try {
+                    var kime =  $("#mesajInput").attr("data-kime");
+                    var metin = $('#mesajInput').val();
+                    ws.send(JSON.stringify({
+                        "kimden": kimden,
+                        "kime": kime,
+                        "tip": 400,
+                        "mesaj": metin
+                    }));
+
+                    $('#sohbet').append('<div style="padding: 4px; margin: 4px; border-radius: 3px; background-color: #cccccc"><b>' + kimden + ':</b> ' + metin);
+
+                }
+                catch (e) {
+                    console.log(e);
+                    alert(e);
+                }
+
+            }
+        });
+    });
+
+    function sohbetEt(kullaniciAdi) {
+        $("#mesajInput").attr("data-kime", kullaniciAdi);
+        $.get("/istek", {"istek": kullaniciAdi}, function (data) {
+            $('#sohbet').html(kullaniciAdi + " kullanıcısına istek gönderildi. cevap bekleniyor.");
+        });
+    }
+</script>
+
+</body>
+</html>
+

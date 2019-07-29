@@ -1,0 +1,23 @@
+<div xmlns:th="http://www.thymeleaf.org">
+
+    <div th:each="kullanici: ${kullaniciList}" style="margin-bottom: 5px">
+        <div th:if="${kullanici.adi eq oturum.adi}">
+            <span th:text="${kullanici.adi}">Kullanici Adı</span>
+            <span style="font-size: 9pt">Çevrim İçi</span>
+        </div>
+
+        <div th:if="${kullanici.adi ne oturum.adi and kullanici.cevrimici}"
+             style="cursor: pointer; color: green" th:onclick="'sohbetEt(\'' + ${kullanici.adi} + '\')'">
+            <span th:text="${kullanici.adi}">Kullanici Adı</span>
+            <span style="font-size: 9pt">Çevrim İçi</span>
+        </div>
+
+        <div th:if="${kullanici.adi ne oturum.adi and !kullanici.cevrimici}"
+             style="color: red" >
+            <span th:text="${kullanici.adi}">Kullanici Adı</span>
+            <span style="font-size: 9pt">Çevrim Dışı</span>
+        </div>
+    </div>
+
+</div>
+
